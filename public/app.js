@@ -108,13 +108,6 @@ function formatNumber(value) {
   return new Intl.NumberFormat().format(value);
 }
 
-function formatMonth(date) {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
 function formatDay(date) {
   return new Intl.DateTimeFormat(undefined, {
     day: "2-digit",
@@ -420,7 +413,6 @@ function initializeGl() {
 async function main() {
   try {
     await loadData();
-    dateRangeEl.textContent = `${formatMonth(new Date(state.meta.start))} - ${formatMonth(new Date(state.meta.end))}`;
     initializeGl();
     bindControls();
     requestAnimationFrame(frame);
