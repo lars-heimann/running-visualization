@@ -2,7 +2,6 @@ const canvas = document.getElementById("scene");
 const errorBox = document.getElementById("error");
 const pointCountEl = document.getElementById("pointCount");
 const runCountEl = document.getElementById("runCount");
-const dateRangeEl = document.getElementById("dateRange");
 const currentDateEl = document.getElementById("currentDate");
 const meterFill = document.getElementById("meterFill");
 const playPause = document.getElementById("playPause");
