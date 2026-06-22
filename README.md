@@ -22,3 +22,6 @@ Open:
 http://127.0.0.1:8000/
 ```
 
+## Publish
+
+Push this repo to GitHub, then in **Settings -> Pages**, set **Source** to **GitHub Actions**. The included workflow publishes `public/` to GitHub Pages on every push to `main`.
