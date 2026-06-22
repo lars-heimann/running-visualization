@@ -159,6 +159,24 @@ dd {
   margin-top: 0.55rem;
 }
 
+.about-map-content .inspiration {
+  color: rgba(244, 241, 232, 0.56);
+  font-size: 0.78rem;
+}
+
+.inspiration a {
+  color: #f0bd5f;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.inspiration a:hover,
+.inspiration a:focus-visible {
+  color: #fff8e8;
+  text-decoration: underline;
+  outline: none;
+}
+
 .profile-links {
   display: flex;
   gap: 0.45rem;
