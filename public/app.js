@@ -130,8 +130,46 @@ function currentDateFromProgress() {
   return new Date(start + (end - start) * state.progress);
 }
 
+function countVisiblePoints() {
+  if (state.progress <= 0) return 0;
+  if (state.progress >= 1) return state.meta.pointCount;
+
+  let low = 0;
+  let high = state.meta.pointCount;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (state.points[mid * 3 + 2] <= state.progress) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+function countVisibleRuns() {
+  const totalRuns = state.meta.parsedRunActivities;
+  const runProgress = state.meta.runProgress;
+  if (state.progress <= 0) return 0;
+  if (state.progress >= 1) return totalRuns;
+
+  let low = 0;
+  let high = runProgress.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (runProgress[mid] <= state.progress) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
 function updateHud() {
   const progressPercent = Math.round(state.progress * 1000) / 10;
+  pointCountEl.textContent = `${formatNumber(countVisiblePoints())} / ${formatNumber(state.meta.pointCount)}`;
+  runCountEl.textContent = `${formatNumber(countVisibleRuns())} / ${formatNumber(state.meta.parsedRunActivities)}`;
   currentDateEl.textContent = `${formatDay(currentDateFromProgress())} - ${progressPercent.toFixed(1)}%`;
   meterFill.style.width = `${state.progress * 100}%`;
   timeSlider.value = String(Math.round(state.progress * 1000));
@@ -344,6 +382,12 @@ async function loadData() {
   if (state.points.length !== state.meta.pointCount * 3) {
     throw new Error("Point binary size does not match metadata.");
   }
+  if (
+    !Array.isArray(state.meta.runProgress) ||
+    state.meta.runProgress.length !== state.meta.parsedRunActivities
+  ) {
+    throw new Error("Run timeline metadata is missing or incomplete.");
+  }
 }
 
 function initializeGl() {
@@ -377,8 +421,6 @@ function initializeGl() {
 async function main() {
   try {
     await loadData();
-    pointCountEl.textContent = formatNumber(state.meta.pointCount);
-    runCountEl.textContent = formatNumber(state.meta.parsedRunActivities);
     dateRangeEl.textContent = `${formatMonth(new Date(state.meta.start))} - ${formatMonth(new Date(state.meta.end))}`;
     initializeGl();
     bindControls();

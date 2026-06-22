@@ -387,6 +387,7 @@ def build_visualization_data(args: argparse.Namespace) -> dict:
     skipped_before_start = 0
     candidate_gps_files = 0
     seen_activity_ids: set[int] = set()
+    activity_start_times: list[int] = []
     start_iso = None
     end_iso = None
 
@@ -432,6 +433,9 @@ def build_visualization_data(args: argparse.Namespace) -> dict:
                     x, y = mercator(lon, lat)
                     unix_seconds = (timestamp + GARMIN_EPOCH) if timestamp is not None else activity.start_ms // 1000
                     projected.append((x, y, int(unix_seconds)))
+                activity_start_times.append(
+                    int((points[0][0] + GARMIN_EPOCH) if points[0][0] is not None else activity.start_ms // 1000)
+                )
                 activity_start = iso_from_fit_timestamp(points[0][0], activity.start_ms)
                 activity_end = iso_from_fit_timestamp(points[-1][0], activity.start_ms)
                 start_iso = activity_start if start_iso is None or activity_start < start_iso else start_iso
@@ -507,6 +511,7 @@ def build_visualization_data(args: argparse.Namespace) -> dict:
         "skippedDuplicateMatches": skipped_duplicate,
         "skippedBeforeStartDate": skipped_before_start,
         "pointCount": len(projected),
+        "runProgress": sorted((timestamp - min_t) / time_extent for timestamp in activity_start_times),
         "maxPoints": args.max_points,
         "sampled": len(projected) >= args.max_points,
         "requestedStartDate": args.start_date,
