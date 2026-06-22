@@ -22,6 +22,8 @@ const state = {
   pan: [0, 0],
   dragging: false,
   lastPointer: [0, 0],
+  activePointers: new Map(),
+  pinchDistance: null,
   lastFrame: performance.now(),
   needsRender: true,
 };
@@ -194,6 +196,63 @@ function resetCamera() {
   state.needsRender = true;
 }
 
+function pointerDistance(pointerA, pointerB) {
+  return Math.hypot(pointerA.clientX - pointerB.clientX, pointerA.clientY - pointerB.clientY);
+}
+
+function updateSinglePointerDrag(event) {
+  const dx = event.clientX - state.lastPointer[0];
+  const dy = event.clientY - state.lastPointer[1];
+  const aspect = canvas.width / canvas.height;
+  const xScale = aspect > 1 ? aspect : 1;
+  const yScale = aspect < 1 ? 1 / aspect : 1;
+  state.pan[0] += (dx / canvas.clientWidth) * 2 * xScale / state.zoom;
+  state.pan[1] -= (dy / canvas.clientHeight) * 2 * yScale / state.zoom;
+  state.lastPointer = [event.clientX, event.clientY];
+  state.needsRender = true;
+}
+
+function updatePinchZoom() {
+  if (state.activePointers.size !== 2) return;
+  const pointers = [...state.activePointers.values()];
+  const distance = pointerDistance(pointers[0], pointers[1]);
+  if (!state.pinchDistance) {
+    state.pinchDistance = distance;
+    return;
+  }
+  const delta = distance / state.pinchDistance;
+  state.zoom = Math.max(0.6, Math.min(120, state.zoom * delta));
+  state.pinchDistance = distance;
+  state.needsRender = true;
+}
+
+function capturePointer(event) {
+  try {
+    canvas.setPointerCapture(event.pointerId);
+  } catch {
+    // Some synthetic events do not have browser pointer capture behind them.
+  }
+}
+
+function endPointer(event) {
+  state.activePointers.delete(event.pointerId);
+  state.pinchDistance = null;
+  state.dragging = state.activePointers.size === 1;
+
+  if (state.dragging) {
+    const [remainingPointer] = state.activePointers.values();
+    state.lastPointer = [remainingPointer.clientX, remainingPointer.clientY];
+  }
+
+  if (canvas.hasPointerCapture(event.pointerId)) {
+    try {
+      canvas.releasePointerCapture(event.pointerId);
+    } catch {
+      // Ignore stale capture state from canceled or synthetic pointers.
+    }
+  }
+}
+
 function bindControls() {
   playPause.addEventListener("click", () => {
     state.playing = !state.playing;
@@ -220,28 +279,32 @@ function bindControls() {
   });
 
   canvas.addEventListener("pointerdown", (event) => {
-    state.dragging = true;
+    event.preventDefault();
+    state.activePointers.set(event.pointerId, event);
+    state.dragging = state.activePointers.size === 1;
     state.lastPointer = [event.clientX, event.clientY];
-    canvas.setPointerCapture(event.pointerId);
+    state.pinchDistance = null;
+    capturePointer(event);
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (!state.dragging) return;
-    const dx = event.clientX - state.lastPointer[0];
-    const dy = event.clientY - state.lastPointer[1];
-    const aspect = canvas.width / canvas.height;
-    const xScale = aspect > 1 ? aspect : 1;
-    const yScale = aspect < 1 ? 1 / aspect : 1;
-    state.pan[0] += (dx / canvas.clientWidth) * 2 * xScale / state.zoom;
-    state.pan[1] -= (dy / canvas.clientHeight) * 2 * yScale / state.zoom;
-    state.lastPointer = [event.clientX, event.clientY];
-    state.needsRender = true;
+    if (!state.activePointers.has(event.pointerId)) return;
+    event.preventDefault();
+    state.activePointers.set(event.pointerId, event);
+
+    if (state.activePointers.size === 2) {
+      state.dragging = false;
+      updatePinchZoom();
+      return;
+    }
+
+    if (state.dragging) {
+      updateSinglePointerDrag(event);
+    }
   });
 
-  canvas.addEventListener("pointerup", (event) => {
-    state.dragging = false;
-    canvas.releasePointerCapture(event.pointerId);
-  });
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
 
   canvas.addEventListener(
     "wheel",
@@ -250,6 +313,14 @@ function bindControls() {
       const delta = Math.exp(-event.deltaY * 0.0012);
       state.zoom = Math.max(0.6, Math.min(120, state.zoom * delta));
       state.needsRender = true;
+    },
+    { passive: false }
+  );
+
+  canvas.addEventListener(
+    "gesturestart",
+    (event) => {
+      event.preventDefault();
     },
     { passive: false }
   );
